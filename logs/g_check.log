@@ -1,0 +1,634 @@
+
+================================================================================
+🚀 GRADIENT FLOW DEBUGGING
+================================================================================
+Config: configs/bevdet/bevdet-r50-4d-cbgs-radar-frozen.py
+Checkpoint: work_dirs/bevdet-r50-4d-cbgs-radar-frozen/latest.pth
+================================================================================
+
+Building model...
+************************************************************************************************************************************************************************************
+ BUILDING DETECTOR:  BEVDet4D_Radar
+************************************************************************************************************************************************************************************
+[NeuRadar RadarHead] Initialized with FORWARD-BIASED distribution
+  X: [0, 50]m (forward hemisphere)
+  Y: [-30, 30]m (lateral)
+  Z: [-3, 3]m (height)
+[NeuRadar RadarHead] Initialized:
+  - In channels: 256
+  - Multi-scale: False
+  - Fusion: N/A
+  - Spatial attention: True
+  - Max offset: 3.0m
+  - Probabilistic: False
+  - Num points: 2000
+============================================================
+[BEVDet4D_Radar] Loading pretrained weights from:
+  ./checkpoints/bevdet-dev2.1/bevdet-r50-4d-cbgs.pth
+============================================================
+load checkpoint from local path: ./checkpoints/bevdet-dev2.1/bevdet-r50-4d-cbgs.pth
+The model and loaded state dict do not match exactly
+
+unexpected key in source state_dict: pts_bbox_head.shared_conv.conv.weight, pts_bbox_head.shared_conv.bn.weight, pts_bbox_head.shared_conv.bn.bias, pts_bbox_head.shared_conv.bn.running_mean, pts_bbox_head.shared_conv.bn.running_var, pts_bbox_head.shared_conv.bn.num_batches_tracked, pts_bbox_head.task_heads.0.reg.0.conv.weight, pts_bbox_head.task_heads.0.reg.0.bn.weight, pts_bbox_head.task_heads.0.reg.0.bn.bias, pts_bbox_head.task_heads.0.reg.0.bn.running_mean, pts_bbox_head.task_heads.0.reg.0.bn.running_var, pts_bbox_head.task_heads.0.reg.0.bn.num_batches_tracked, pts_bbox_head.task_heads.0.reg.1.weight, pts_bbox_head.task_heads.0.reg.1.bias, pts_bbox_head.task_heads.0.height.0.conv.weight, pts_bbox_head.task_heads.0.height.0.bn.weight, pts_bbox_head.task_heads.0.height.0.bn.bias, pts_bbox_head.task_heads.0.height.0.bn.running_mean, pts_bbox_head.task_heads.0.height.0.bn.running_var, pts_bbox_head.task_heads.0.height.0.bn.num_batches_tracked, pts_bbox_head.task_heads.0.height.1.weight, pts_bbox_head.task_heads.0.height.1.bias, pts_bbox_head.task_heads.0.dim.0.conv.weight, pts_bbox_head.task_heads.0.dim.0.bn.weight, pts_bbox_head.task_heads.0.dim.0.bn.bias, pts_bbox_head.task_heads.0.dim.0.bn.running_mean, pts_bbox_head.task_heads.0.dim.0.bn.running_var, pts_bbox_head.task_heads.0.dim.0.bn.num_batches_tracked, pts_bbox_head.task_heads.0.dim.1.weight, pts_bbox_head.task_heads.0.dim.1.bias, pts_bbox_head.task_heads.0.rot.0.conv.weight, pts_bbox_head.task_heads.0.rot.0.bn.weight, pts_bbox_head.task_heads.0.rot.0.bn.bias, pts_bbox_head.task_heads.0.rot.0.bn.running_mean, pts_bbox_head.task_heads.0.rot.0.bn.running_var, pts_bbox_head.task_heads.0.rot.0.bn.num_batches_tracked, pts_bbox_head.task_heads.0.rot.1.weight, pts_bbox_head.task_heads.0.rot.1.bias, pts_bbox_head.task_heads.0.vel.0.conv.weight, pts_bbox_head.task_heads.0.vel.0.bn.weight, pts_bbox_head.task_heads.0.vel.0.bn.bias, pts_bbox_head.task_heads.0.vel.0.bn.running_mean, pts_bbox_head.task_heads.0.vel.0.bn.running_var, pts_bbox_head.task_heads.0.vel.0.bn.num_batches_tracked, pts_bbox_head.task_heads.0.vel.1.weight, pts_bbox_head.task_heads.0.vel.1.bias, pts_bbox_head.task_heads.0.heatmap.0.conv.weight, pts_bbox_head.task_heads.0.heatmap.0.bn.weight, pts_bbox_head.task_heads.0.heatmap.0.bn.bias, pts_bbox_head.task_heads.0.heatmap.0.bn.running_mean, pts_bbox_head.task_heads.0.heatmap.0.bn.running_var, pts_bbox_head.task_heads.0.heatmap.0.bn.num_batches_tracked, pts_bbox_head.task_heads.0.heatmap.1.weight, pts_bbox_head.task_heads.0.heatmap.1.bias
+
+missing keys in source state_dict: radar_head.pc_range, radar_head.encoder.0.weight, radar_head.encoder.1.weight, radar_head.encoder.1.bias, radar_head.encoder.1.running_mean, radar_head.encoder.1.running_var, radar_head.encoder.3.weight, radar_head.encoder.4.weight, radar_head.encoder.4.bias, radar_head.encoder.4.running_mean, radar_head.encoder.4.running_var, radar_head.encoder.6.weight, radar_head.encoder.7.weight, radar_head.encoder.7.bias, radar_head.encoder.7.running_mean, radar_head.encoder.7.running_var, radar_head.spatial_pool.attention.0.weight, radar_head.spatial_pool.attention.0.bias, radar_head.spatial_pool.attention.2.weight, radar_head.spatial_pool.attention.2.bias, radar_head.reference_head.0.weight, radar_head.reference_head.0.bias, radar_head.reference_head.3.weight, radar_head.reference_head.3.bias, radar_head.reference_head.6.weight, radar_head.reference_head.6.bias, radar_head.offset_head.0.weight, radar_head.offset_head.0.bias, radar_head.offset_head.3.weight, radar_head.offset_head.3.bias, radar_head.offset_head.5.weight, radar_head.offset_head.5.bias
+
+✓ Pretrained weights loaded successfully!
+  Missing keys (radar_head): 0 [Expected]
+  Missing keys (other): 0
+  Unexpected keys: 0
+============================================================
+[BEVDet4D_Radar] Initializing radar_head (backbone is pretrained)
+[BEVDet4D_Radar] Freezing pretrained layers...
+Frozen img_backbone: 23,508,032 parameters
+Frozen img_neck: 1,377,024 parameters
+Frozen img_view_transformer: 35,723 parameters
+Total frozen parameters: 24,920,779
+Radar head trainable parameters: 21,546,737
+[BEVDet4D_Radar] Freezing complete!
+⚠️  Checkpoint not found: work_dirs/bevdet-r50-4d-cbgs-radar-frozen/latest.pth
+Using freshly initialized model
+
+================================================================================
+🔍 CHECKING REQUIRES_GRAD STATUS
+================================================================================
+
+📦 img_backbone:
+  Trainable:            0 (  0.0%)
+  Frozen:      23,508,032 (100.0%)
+  Total:       23,508,032
+
+📦 img_neck:
+  Trainable:            0 (  0.0%)
+  Frozen:       1,377,024 (100.0%)
+  Total:        1,377,024
+
+📦 img_view_transformer:
+  Trainable:            0 (  0.0%)
+  Frozen:          35,723 (100.0%)
+  Total:           35,723
+
+📦 img_bev_encoder_backbone:
+  Trainable:   19,594,080 (100.0%)
+  Frozen:               0 (  0.0%)
+  Total:       19,594,080
+
+📦 img_bev_encoder_neck:
+  Trainable:    7,293,696 (100.0%)
+  Frozen:               0 (  0.0%)
+  Total:        7,293,696
+
+📦 radar_head:
+  Trainable:   21,546,737 (100.0%)
+  Frozen:               0 (  0.0%)
+  Total:       21,546,737
+
+📦 other:
+  Trainable:      288,720 (100.0%)
+  Frozen:               0 (  0.0%)
+  Total:          288,720
+
+================================================================================
+🎯 TOTAL SUMMARY:
+  Trainable:   48,723,233 ( 66.2%)
+  Frozen:      24,920,779 ( 33.8%)
+  Total:       73,644,012
+================================================================================
+
+Building dataset...
+
+================================================================================
+🔍 REGISTERING GRADIENT TRACKING HOOKS
+================================================================================
+✓ Registered hooks on 211 modules
+✓ Tracking gradients for 92 parameters
+================================================================================
+
+
+🏃 Running 3 training iterations...
+
+
+================================================================================
+⚙️  ITERATION 1/3
+================================================================================
+
+📦 Batch info:
+  img_inputs: list of 7 tensors
+    [0]: torch.Size([1, 12, 3, 256, 704]) torch.float32 device=cpu
+    [1]: torch.Size([1, 12, 4, 4]) torch.float32 device=cpu
+    [2]: torch.Size([1, 12, 4, 4]) torch.float32 device=cpu
+    [3]: torch.Size([1, 12, 3, 3]) torch.float32 device=cpu
+    [4]: torch.Size([1, 12, 3, 3]) torch.float32 device=cpu
+    [5]: torch.Size([1, 12, 3]) torch.float32 device=cpu
+    [6]: torch.Size([1, 4, 4]) torch.float32 device=cpu
+  img_metas: <class 'mmcv.parallel.data_container.DataContainer'>
+  gt_radar_points: torch.Size([1, 2000, 3]) torch.float32
+
+🔄 Forward pass...
+
+============================================================
+[Iter 0] LOSS DEBUG - Batch 0
+============================================================
+
+📊 GT Statistics:
+   GT points (filtered): 2000
+   X range: [-32.28, 43.35]
+   Y range: [-46.74, 41.69]
+   Z range: [-5.00, 2.01]
+
+🎯 Prediction Statistics:
+   Predictions: 2000
+   X range: [1.00, 48.72]
+   Y range: [-30.13, 30.24]
+   Z range: [-3.02, 2.81]
+
+🔍 Confidence Statistics:
+   Mean: 0.3957
+   Std: 0.0007
+   Min: 0.3931
+   Max: 0.3978
+   High conf (>0.5): 0/2000
+   Low conf (<0.2): 0/2000
+
+🔗 Matching Statistics:
+   Matched pairs: 2000
+   Unmatched predictions: 0
+   Unmatched GT: 0
+   Avg matched distance: 48.4280m
+   Avg matched confidence: 0.3957
+   Min matched distance: 8.3563m
+   Max matched distance: 98.7289m
+
+📏 Coverage of GT points:
+   Avg min distance to GT: 8.6090m
+   Max min distance to GT: 58.2047m
+   ⚠️  GT points >5m from any pred: 1980/2000
+
+💰 Loss Breakdown:
+   Matched loss (raw): 98710.632812
+   Unmatched loss (raw): 0.000000
+   Matched loss (normalized): 49.355320
+   Unmatched loss (normalized): 0.000000
+   Batch loss: 49.355320
+============================================================
+
+
+📈 BATCH SUMMARY (Iter 0):
+   Total GT points: 2000
+   Avg GT per sample: 2000.0
+   Total matched pairs: 2000
+   Avg matched per sample: 2000.0
+   Average batch loss: 49.355320
+   Total matched loss: 98710.632812
+   Total unmatched loss: 0.000000
+
+
+💰 Losses:
+  loss_radar: 1.031660
+  loss_radar_main: 49.355320
+  loss_confidence_reg: 0.031303
+  loss_diversity: 0.000006
+  loss_coverage: 22.245663
+  avg_confidence: 0.395693
+  max_confidence: 0.397828
+  min_confidence: 0.393099
+  high_conf_count: 0.000000
+  TOTAL: 72.663956
+
+⬅️  Backward pass...
+
+====================================================================================================
+📊 GRADIENT FLOW ANALYSIS - Step 1
+====================================================================================================
+
+====================================================================================================
+📦 IMG_BEV_ENCODER_BACKBONE (42 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 4.349597e-01
+  Median gradient norm: 1.632693e-01
+  Max gradient norm: 2.539859e+00
+  Min gradient norm: 2.364542e-02
+  Mean zero fraction: 0.0598
+  Parameters with NO gradients: 0/42
+
+🔝 Top 5 parameters by gradient norm:
+  1. conv1.weight                            : 2.539859e+00
+  2. conv2.weight                            : 2.099495e+00
+  3. downsample.weight                       : 1.789865e+00
+  4. downsample.weight                       : 1.579106e+00
+  5. downsample.weight                       : 1.186127e+00
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. bn1.weight                              : 6.045803e-02
+  2. bn1.weight                              : 5.883636e-02
+  3. bn1.weight                              : 5.137430e-02
+  4. bn1.bias                                : 2.795500e-02
+  5. bn1.weight                              : 2.364542e-02
+
+====================================================================================================
+📦 IMG_BEV_ENCODER_NECK (11 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 1.135186e+00
+  Median gradient norm: 2.017740e-01
+  Max gradient norm: 5.161323e+00
+  Min gradient norm: 2.948062e-02
+  Mean zero fraction: 0.0000
+  Parameters with NO gradients: 0/11
+
+🔝 Top 5 parameters by gradient norm:
+  1. 4.weight                                : 5.161323e+00
+  2. 1.weight                                : 2.260687e+00
+  3. 3.weight                                : 2.217616e+00
+  4. 0.weight                                : 1.615896e+00
+  5. 2.weight                                : 2.505823e-01
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. 2.bias                                  : 2.013751e-01
+  2. 1.bias                                  : 1.980826e-01
+  3. 4.weight                                : 1.797285e-01
+  4. 4.bias                                  : 1.705003e-01
+  5. 4.bias                                  : 2.948062e-02
+
+====================================================================================================
+📦 RADAR_HEAD (25 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 4.557280e+00
+  Median gradient norm: 3.196533e-01
+  Max gradient norm: 2.810084e+01
+  Min gradient norm: 4.375181e-04
+  Mean zero fraction: 0.2316
+  Parameters with NO gradients: 0/25
+
+🔝 Top 5 parameters by gradient norm:
+  1. 6.bias                                  : 2.810084e+01
+  2. 6.weight                                : 1.648770e+01
+  3. 3.weight                                : 1.639509e+01
+  4. 0.weight                                : 1.556631e+01
+  5. 0.weight                                : 1.422095e+01
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. 2.bias                                  : 2.102900e-02
+  2. 0.weight                                : 6.339971e-03
+  3. 3.weight                                : 6.199313e-03
+  4. 3.bias                                  : 2.465793e-03
+  5. 0.bias                                  : 4.375181e-04
+
+====================================================================================================
+📦 OTHER (14 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 2.375952e-01
+  Median gradient norm: 2.489446e-01
+  Max gradient norm: 7.448045e-01
+  Min gradient norm: 2.438791e-02
+  Mean zero fraction: 0.0000
+  Parameters with NO gradients: 0/14
+
+🔝 Top 5 parameters by gradient norm:
+  1. downsample.weight                       : 7.448045e-01
+  2. downsample.bias                         : 3.717168e-01
+  3. bn2.bias                                : 3.717168e-01
+  4. conv2.weight                            : 3.037038e-01
+  5. bn2.bias                                : 2.998082e-01
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. bn1.bias                                : 1.150646e-01
+  2. bn2.weight                              : 4.074091e-02
+  3. bn2.weight                              : 3.547240e-02
+  4. bn1.weight                              : 2.549817e-02
+  5. bn1.weight                              : 2.438791e-02
+
+====================================================================================================
+
+
+================================================================================
+⚙️  ITERATION 2/3
+================================================================================
+
+📦 Batch info:
+  img_inputs: list of 7 tensors
+    [0]: torch.Size([1, 12, 3, 256, 704]) torch.float32 device=cpu
+    [1]: torch.Size([1, 12, 4, 4]) torch.float32 device=cpu
+    [2]: torch.Size([1, 12, 4, 4]) torch.float32 device=cpu
+    [3]: torch.Size([1, 12, 3, 3]) torch.float32 device=cpu
+    [4]: torch.Size([1, 12, 3, 3]) torch.float32 device=cpu
+    [5]: torch.Size([1, 12, 3]) torch.float32 device=cpu
+    [6]: torch.Size([1, 4, 4]) torch.float32 device=cpu
+  img_metas: <class 'mmcv.parallel.data_container.DataContainer'>
+  gt_radar_points: torch.Size([1, 2000, 3]) torch.float32
+
+🔄 Forward pass...
+
+💰 Losses:
+  loss_radar: 1.053031
+  loss_radar_main: 50.466133
+  loss_confidence_reg: 0.031301
+  loss_diversity: 0.000005
+  loss_coverage: 21.822973
+  avg_confidence: 0.395682
+  max_confidence: 0.397856
+  min_confidence: 0.393237
+  high_conf_count: 0.000000
+  TOTAL: 73.373444
+
+⬅️  Backward pass...
+
+====================================================================================================
+📊 GRADIENT FLOW ANALYSIS - Step 2
+====================================================================================================
+
+====================================================================================================
+📦 IMG_BEV_ENCODER_BACKBONE (42 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 5.510031e-01
+  Median gradient norm: 2.048076e-01
+  Max gradient norm: 2.560943e+00
+  Min gradient norm: 3.652432e-02
+  Mean zero fraction: 0.0532
+  Parameters with NO gradients: 0/42
+
+🔝 Top 5 parameters by gradient norm:
+  1. conv1.weight                            : 2.560943e+00
+  2. downsample.weight                       : 2.514071e+00
+  3. conv2.weight                            : 2.263157e+00
+  4. downsample.weight                       : 1.805414e+00
+  5. downsample.weight                       : 1.727328e+00
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. bn1.weight                              : 7.515550e-02
+  2. bn1.weight                              : 6.875251e-02
+  3. bn1.weight                              : 6.847099e-02
+  4. bn1.bias                                : 4.794670e-02
+  5. bn1.weight                              : 3.652432e-02
+
+====================================================================================================
+📦 IMG_BEV_ENCODER_NECK (11 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 1.276741e+00
+  Median gradient norm: 2.455007e-01
+  Max gradient norm: 5.733377e+00
+  Min gradient norm: 4.041791e-02
+  Mean zero fraction: 0.0000
+  Parameters with NO gradients: 0/11
+
+🔝 Top 5 parameters by gradient norm:
+  1. 4.weight                                : 5.733377e+00
+  2. 3.weight                                : 2.571995e+00
+  3. 1.weight                                : 2.507711e+00
+  4. 0.weight                                : 1.814108e+00
+  5. 2.weight                                : 2.792000e-01
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. 1.weight                                : 2.304872e-01
+  2. 1.bias                                  : 2.299728e-01
+  3. 4.weight                                : 2.056603e-01
+  4. 4.bias                                  : 1.857228e-01
+  5. 4.bias                                  : 4.041791e-02
+
+====================================================================================================
+📦 RADAR_HEAD (25 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 4.862241e+00
+  Median gradient norm: 2.863795e-01
+  Max gradient norm: 3.077398e+01
+  Min gradient norm: 3.854449e-04
+  Mean zero fraction: 0.2438
+  Parameters with NO gradients: 0/25
+
+🔝 Top 5 parameters by gradient norm:
+  1. 6.bias                                  : 3.077398e+01
+  2. 3.weight                                : 1.633262e+01
+  3. 0.weight                                : 1.595354e+01
+  4. 0.weight                                : 1.570533e+01
+  5. 6.weight                                : 1.558089e+01
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. 2.bias                                  : 7.452233e-03
+  2. 3.weight                                : 5.443276e-03
+  3. 0.weight                                : 5.305720e-03
+  4. 3.bias                                  : 2.274552e-03
+  5. 0.bias                                  : 3.854449e-04
+
+====================================================================================================
+📦 OTHER (14 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 4.319476e-01
+  Median gradient norm: 5.531039e-01
+  Max gradient norm: 7.925337e-01
+  Min gradient norm: 3.592034e-02
+  Mean zero fraction: 0.0000
+  Parameters with NO gradients: 0/14
+
+🔝 Top 5 parameters by gradient norm:
+  1. downsample.weight                       : 7.925337e-01
+  2. bn1.bias                                : 7.298613e-01
+  3. bn2.bias                                : 6.750690e-01
+  4. downsample.bias                         : 6.750690e-01
+  5. bn2.bias                                : 6.304682e-01
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. bn1.bias                                : 1.667932e-01
+  2. bn1.weight                              : 7.644890e-02
+  3. bn2.weight                              : 7.433353e-02
+  4. bn2.weight                              : 6.914404e-02
+  5. bn1.weight                              : 3.592034e-02
+
+====================================================================================================
+
+
+================================================================================
+⚙️  ITERATION 3/3
+================================================================================
+
+📦 Batch info:
+  img_inputs: list of 7 tensors
+    [0]: torch.Size([1, 12, 3, 256, 704]) torch.float32 device=cpu
+    [1]: torch.Size([1, 12, 4, 4]) torch.float32 device=cpu
+    [2]: torch.Size([1, 12, 4, 4]) torch.float32 device=cpu
+    [3]: torch.Size([1, 12, 3, 3]) torch.float32 device=cpu
+    [4]: torch.Size([1, 12, 3, 3]) torch.float32 device=cpu
+    [5]: torch.Size([1, 12, 3]) torch.float32 device=cpu
+    [6]: torch.Size([1, 4, 4]) torch.float32 device=cpu
+  img_metas: <class 'mmcv.parallel.data_container.DataContainer'>
+  gt_radar_points: torch.Size([1, 2000, 3]) torch.float32
+
+🔄 Forward pass...
+
+💰 Losses:
+  loss_radar: 1.037158
+  loss_radar_main: 49.841934
+  loss_confidence_reg: 0.031301
+  loss_diversity: 0.000005
+  loss_coverage: 20.128214
+  avg_confidence: 0.395682
+  max_confidence: 0.397822
+  min_confidence: 0.393327
+  high_conf_count: 0.000000
+  TOTAL: 71.038612
+
+⬅️  Backward pass...
+
+====================================================================================================
+📊 GRADIENT FLOW ANALYSIS - Step 3
+====================================================================================================
+
+====================================================================================================
+📦 IMG_BEV_ENCODER_BACKBONE (42 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 2.466010e-01
+  Median gradient norm: 9.569304e-02
+  Max gradient norm: 1.389017e+00
+  Min gradient norm: 1.496194e-02
+  Mean zero fraction: 0.0539
+  Parameters with NO gradients: 0/42
+
+🔝 Top 5 parameters by gradient norm:
+  1. conv1.weight                            : 1.389017e+00
+  2. conv2.weight                            : 1.281688e+00
+  3. downsample.weight                       : 1.047044e+00
+  4. downsample.weight                       : 8.910362e-01
+  5. downsample.weight                       : 7.963520e-01
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. bn1.weight                              : 3.370341e-02
+  2. bn1.weight                              : 2.896775e-02
+  3. bn1.weight                              : 2.487995e-02
+  4. bn1.bias                                : 1.856837e-02
+  5. bn1.weight                              : 1.496194e-02
+
+====================================================================================================
+📦 IMG_BEV_ENCODER_NECK (11 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 7.979058e-01
+  Median gradient norm: 1.566209e-01
+  Max gradient norm: 3.667239e+00
+  Min gradient norm: 3.254936e-02
+  Mean zero fraction: 0.0000
+  Parameters with NO gradients: 0/11
+
+🔝 Top 5 parameters by gradient norm:
+  1. 4.weight                                : 3.667239e+00
+  2. 1.weight                                : 1.596674e+00
+  3. 3.weight                                : 1.534387e+00
+  4. 0.weight                                : 1.094754e+00
+  5. 2.weight                                : 1.705819e-01
+/home/kaushek/miniconda3/envs/bev_det/lib/python3.8/site-packages/mmdet/models/backbones/resnet.py:401: UserWarning: DeprecationWarning: pretrained is deprecated, please use "init_cfg" instead
+  warnings.warn('DeprecationWarning: pretrained is deprecated, '
+/home/BEVDet/mmdet3d/datasets/pipelines/loading.py:1166: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at  /opt/conda/conda-bld/pytorch_1634272068694/work/torch/csrc/utils/tensor_new.cpp:201.)
+  gt_boxes, gt_labels = torch.Tensor(gt_boxes), torch.tensor(gt_labels)
+/home/BEVDet/mmdet3d/models/necks/view_transformer.py:246: UserWarning: torch.range is deprecated and will be removed in a future release because its behavior is inconsistent with Python's range builtin. Instead, use torch.arange, which produces values in [start, end).
+  ranks_depth = torch.range(
+/home/BEVDet/mmdet3d/models/necks/view_transformer.py:248: UserWarning: torch.range is deprecated and will be removed in a future release because its behavior is inconsistent with Python's range builtin. Instead, use torch.arange, which produces values in [start, end).
+  ranks_feat = torch.range(
+/home/BEVDet/mmdet3d/models/necks/view_transformer.py:256: UserWarning: torch.range is deprecated and will be removed in a future release because its behavior is inconsistent with Python's range builtin. Instead, use torch.arange, which produces values in [start, end).
+  batch_idx = torch.range(0, B - 1).reshape(B, 1). \
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. 2.bias                                  : 1.504613e-01
+  2. 1.weight                                : 1.384998e-01
+  3. 4.weight                                : 1.204734e-01
+  4. 4.bias                                  : 1.147229e-01
+  5. 4.bias                                  : 3.254936e-02
+
+====================================================================================================
+📦 RADAR_HEAD (25 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 3.983770e+00
+  Median gradient norm: 2.188207e-01
+  Max gradient norm: 2.650732e+01
+  Min gradient norm: 3.508633e-04
+  Mean zero fraction: 0.2326
+  Parameters with NO gradients: 0/25
+
+🔝 Top 5 parameters by gradient norm:
+  1. 6.bias                                  : 2.650732e+01
+  2. 6.weight                                : 1.526993e+01
+  3. 0.weight                                : 1.453280e+01
+  4. 3.weight                                : 1.426773e+01
+  5. 0.weight                                : 9.704893e+00
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. 2.bias                                  : 7.529352e-03
+  2. 3.weight                                : 4.927807e-03
+  3. 0.weight                                : 4.854599e-03
+  4. 3.bias                                  : 2.008312e-03
+  5. 0.bias                                  : 3.508633e-04
+
+====================================================================================================
+📦 OTHER (14 parameters)
+====================================================================================================
+
+🔢 Aggregate Statistics:
+  Mean gradient norm: 1.412677e-01
+  Median gradient norm: 1.589085e-01
+  Max gradient norm: 4.157467e-01
+  Min gradient norm: 1.261015e-02
+  Mean zero fraction: 0.0000
+  Parameters with NO gradients: 0/14
+
+🔝 Top 5 parameters by gradient norm:
+  1. downsample.weight                       : 4.157467e-01
+  2. downsample.bias                         : 2.182920e-01
+  3. bn2.bias                                : 2.182920e-01
+  4. bn2.bias                                : 1.899211e-01
+  5. conv2.weight                            : 1.713444e-01
+
+🔻 Bottom 5 parameters by gradient norm:
+  1. bn1.bias                                : 5.419996e-02
+  2. bn2.weight                              : 2.786007e-02
+  3. bn2.weight                              : 2.572069e-02
+  4. bn1.weight                              : 1.592376e-02
+  5. bn1.weight                              : 1.261015e-02
+
+====================================================================================================
+
+
+================================================================================
+📈 GRADIENT FLOW SUMMARY OVER ALL ITERATIONS
+================================================================================
+
+RADAR_HEAD:
+  Avg gradient norm: 4.467764e+00
+  Max gradient norm: 2.846071e+01
+  Min gradient norm: 3.912754e-04
+
+IMG_BEV_ENCODER_NECK:
+  Avg gradient norm: 1.069944e+00
+  Max gradient norm: 4.853980e+00
+  Min gradient norm: 3.414930e-02
+
+IMG_BEV_ENCODER_BACKBONE:
+  Avg gradient norm: 4.108546e-01
+  Max gradient norm: 2.163273e+00
+  Min gradient norm: 2.504389e-02
+
+OTHER:
+  Avg gradient norm: 2.702702e-01
+  Max gradient norm: 6.510283e-01
+  Min gradient norm: 2.430613e-02
+
+================================================================================
+✅ GRADIENT FLOW DEBUGGING COMPLETE!
+================================================================================
+

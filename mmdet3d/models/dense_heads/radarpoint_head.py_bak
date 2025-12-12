@@ -1,0 +1,511 @@
+# Copyright (c) Phigent Robotics. All rights reserved.
+"""
+Radar Point Regression Head - SPATIAL VERSION
+Optimized for BEVDet BEV features with spatial preservation.
+
+Key improvements:
+- Preserves spatial information from BEVDet BEV features
+- Grid-based prediction (8x8 spatial groups)
+- Diversity, coverage, and spatial variance losses
+- Adapts to different scenes (no more identical outputs!)
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from mmcv.runner import force_fp32
+from mmdet.models import HEADS
+
+
+import os
+import matplotlib.pyplot as plt
+
+
+XLIM = 20
+YLIM = 20
+
+def visualize_bev(bev_feat, save_path):
+    """
+    bev_feat: (C, H, W) tensor
+    """
+    bev_np = bev_feat.detach().cpu().numpy()
+    bev_heatmap = bev_np.mean(axis=0)   # average over channels
+
+    plt.figure(figsize=(6, 6))
+    plt.imshow(bev_heatmap, cmap='viridis')
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=120)
+    plt.close()
+
+def visualize_points(pred_points, gt_points, save_path):
+    """
+    pred_points: (N, 3)
+    gt_points: (N_gt, 3)
+    """
+    pred_np = pred_points.detach().cpu().numpy()
+    gt_np = gt_points.detach().cpu().numpy()
+
+    fig = plt.figure(figsize=(10, 5))
+
+    ax1 = fig.add_subplot(1, 2, 1)
+    ax1.scatter(pred_np[:, 0], pred_np[:, 1], s=4)
+    ax1.set_title("Predicted Radar Points")
+    ax1.set_aspect("equal")
+    ax1.set_xlim(-XLIM, XLIM)
+    ax1.set_ylim(-YLIM, YLIM)
+
+    ax2 = fig.add_subplot(1, 2, 2)
+    ax2.scatter(gt_np[:, 0], gt_np[:, 1], s=4, c='red')
+    ax2.set_title("GT Radar Points")
+    ax2.set_aspect("equal")
+    ax1.set_xlim(-XLIM, XLIM)
+    ax1.set_ylim(-YLIM, YLIM)
+
+    # plt.tight_layout()
+    plt.savefig(save_path, dpi=120)
+    plt.close()
+
+
+
+@HEADS.register_module()
+class RadarPointRegressionHead(nn.Module):
+    """Head that predicts radar point cloud from BEV features.
+    
+    Uses spatial features to preserve BEVDet's spatial structure.
+    Predicts points in spatial groups for better distribution.
+    
+    Args:
+        in_channels (int): Input BEV feature channels (from BEVDet)
+        num_points (int): Number of radar points to predict (should be divisible by num_spatial_groups)
+        point_dim (int): Dimension per point (3 for x,y,z)
+        bev_h (int): BEV feature map height
+        bev_w (int): BEV feature map width
+        hidden_channels (list): Hidden layer dimensions
+        point_cloud_range (list): [x_min, y_min, z_min, x_max, y_max, z_max]
+        loss_type (str): Type of loss ('chamfer', 'l1', 'l2')
+        loss_weight (float): Loss weight
+        diversity_weight (float): Weight for diversity loss
+        coverage_weight (float): Weight for coverage loss
+        l1_weight (float): Weight for L1 loss
+        l2_weight (float): Weight for L2 loss
+        min_distance (float): Minimum distance for diversity
+        coverage_threshold (float): Coverage radius threshold
+        use_spatial (bool): Use spatial features (True) or global pooling (False)
+        num_spatial_groups (int): Number of spatial groups (e.g., 64 for 8x8)
+    """
+    
+    def __init__(self,
+                 in_channels=256,
+                 num_points=1024,  # Changed to be divisible by 64
+                 point_dim=3,
+                 bev_h=128,
+                 bev_w=128,
+                 hidden_channels=[512, 256, 128],
+                 point_cloud_range=[-51.2, -51.2, -5.0, 51.2, 51.2, 3.0],
+                 loss_type='chamfer',
+                 loss_weight=1.0,
+                 diversity_weight=0.1,
+                 coverage_weight=0.5,
+                 l1_weight=0.1,
+                 l2_weight=0.1,
+                 min_distance=0.5,
+                 coverage_threshold=1.5,
+                 use_spatial=True,
+                 num_spatial_groups=64):
+        super(RadarPointRegressionHead, self).__init__()
+        
+        self.in_channels = in_channels
+        self.num_points = num_points
+        self.point_dim = point_dim
+        self.bev_h = bev_h
+        self.bev_w = bev_w
+        self.loss_type = loss_type
+        self.loss_weight = loss_weight
+        self.l1_weight = l1_weight
+        self.l2_weight = l2_weight
+        
+        # Loss hyperparameters
+        self.diversity_weight = diversity_weight
+        self.coverage_weight = coverage_weight
+        self.min_distance = min_distance
+        self.coverage_threshold = coverage_threshold
+        
+        # Spatial parameters
+        self.use_spatial = use_spatial
+        self.num_spatial_groups = num_spatial_groups
+        
+        # Point cloud range for normalization
+        self.register_buffer('pc_range', torch.tensor(point_cloud_range))
+        
+        # Feature extraction
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(in_channels, hidden_channels[0], 3, padding=1, bias=False),
+            nn.BatchNorm2d(hidden_channels[0]),
+            nn.ReLU(inplace=True),
+        )
+        
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(hidden_channels[0], hidden_channels[1], 3, padding=1, bias=False),
+            nn.BatchNorm2d(hidden_channels[1]),
+            nn.ReLU(inplace=True),
+        )
+        
+        if self.use_spatial:
+            # Spatial approach - preserve BEV structure
+            self.grid_h = int(num_spatial_groups ** 0.5)
+            self.grid_w = int(num_spatial_groups ** 0.5)
+            assert self.grid_h * self.grid_w == num_spatial_groups, \
+                f"num_spatial_groups must be perfect square, got {num_spatial_groups}"
+            
+            # Adaptive pooling to grid size
+            self.spatial_pool = nn.AdaptiveAvgPool2d((self.grid_h, self.grid_w))
+            
+            # Points per spatial group
+            self.points_per_group = num_points // num_spatial_groups
+            if num_points % num_spatial_groups != 0:
+                print(f"Warning: {num_points} points not divisible by {num_spatial_groups} groups.")
+                print(f"Adjusting to {self.points_per_group * num_spatial_groups} points.")
+                self.num_points = self.points_per_group * num_spatial_groups
+            
+            # Shared decoder for all spatial locations
+            self.point_decoder = nn.Sequential(
+                nn.Linear(hidden_channels[1], hidden_channels[2]),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_channels[2], self.points_per_group * point_dim)
+            )
+            
+            # Learnable spatial position embeddings
+            self.spatial_embed = nn.Parameter(
+                torch.randn(1, hidden_channels[1], self.grid_h, self.grid_w) * 0.02
+            )
+            
+        else:
+            # Global pooling (original approach)
+            self.global_pool = nn.AdaptiveAvgPool2d(1)
+            
+            fc_layers = []
+            fc_channels = [hidden_channels[1]] + hidden_channels[2:] + [num_points * point_dim]
+            for i in range(len(fc_channels) - 1):
+                fc_layers.append(nn.Linear(fc_channels[i], fc_channels[i+1]))
+                if i < len(fc_channels) - 2:
+                    fc_layers.append(nn.ReLU(inplace=True))
+                    fc_layers.append(nn.Dropout(0.1))
+            
+            self.fc_layers = nn.Sequential(*fc_layers)
+        
+        # Initialize weights
+        self._init_weights()
+
+
+        # For Visualization purpose
+        self.vis_iter = 0
+        self.vis_dir = "work_dirs/radar_training_viz"
+        os.makedirs(self.vis_dir, exist_ok=True)
+        self.visualize_training = True
+    
+    def _init_weights(self):
+        """Initialize weights."""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+    
+    def forward(self, bev_feat):
+        """Forward pass.
+        
+        Args:
+            bev_feat (Tensor): BEV features from BEVDet, shape (B, C, H, W)
+            
+        Returns:
+            list[dict]: Predictions with shape:
+                [{'radar_points': Tensor(B, num_points, point_dim)}]
+        """
+        B = bev_feat.shape[0]
+
+        # ---- Visualization ----
+        if self.visualize_training:  # only visualize batch size 1
+            self.vis_iter += 1
+            s_dir = os.path.join(self.vis_dir, f"{self.vis_iter}")
+
+            # Save BEV feature heatmap
+            for i in range(B):
+                iter_str = f"{i:05d}"
+                os.makedirs(os.path.join(s_dir, "bev_features"), exist_ok=True)
+                bev_path = os.path.join(s_dir, "bev_features", f"iter_{iter_str}_bev.png")
+                visualize_bev(bev_feat[i], bev_path)
+
+        
+        # Extract features while preserving spatial structure
+        feat = self.conv1(bev_feat)  # (B, 512, H, W)
+        feat = self.conv2(feat)      # (B, 256, H, W)
+        
+        if self.use_spatial:
+            # Spatial approach - preserve location information
+            feat_grid = self.spatial_pool(feat)  # (B, 256, grid_h, grid_w)
+            
+            # Add learned spatial position embeddings
+            feat_grid = feat_grid + self.spatial_embed  # (B, 256, grid_h, grid_w)
+            
+            # Reshape: (B, C, H, W) -> (B, H*W, C)
+            B, C, H, W = feat_grid.shape
+            feat_grid = feat_grid.view(B, C, -1).permute(0, 2, 1)  # (B, num_groups, 256)
+            
+            # Decode points for each spatial location
+            points_per_loc = self.point_decoder(feat_grid)  # (B, num_groups, points_per_group*3)
+            
+            # Reshape to point cloud
+            points = points_per_loc.view(B, -1, self.point_dim)  # (B, num_points, 3)
+            
+        else:
+            # Global pooling (original)
+            feat = self.global_pool(feat).flatten(1)  # (B, 256)
+            points_flat = self.fc_layers(feat)  # (B, num_points * 3)
+            points = points_flat.view(B, self.num_points, self.point_dim)
+        
+        # Normalize to point cloud range
+        points = torch.tanh(points)  # Bounded to [-1, 1]
+        
+        # Scale to actual point cloud range
+        pc_min = self.pc_range[:self.point_dim]
+        pc_max = self.pc_range[self.point_dim:self.point_dim*2]
+        pc_center = (pc_min + pc_max) / 2
+        pc_scale = (pc_max - pc_min) / 2
+        
+        points = points * pc_scale + pc_center
+        
+        return [{'radar_points': points}]
+    
+    @force_fp32(apply_to=('preds_dicts',))
+    def loss(self, preds_dicts, gt_radar_points, img_metas=None):
+        """Compute loss with diversity and coverage regularization.
+        
+        Args:
+            preds_dicts (list[dict]): Predictions
+            gt_radar_points (Tensor): GT radar points (B, N_gt, 3)
+            img_metas (list[dict]): Meta information
+            
+        Returns:
+            dict: Loss dictionary with multiple loss components
+        """
+        pred_points = preds_dicts[0]['radar_points']  # (B, N_pred, 3)
+        
+        # ---- Points visualization (only 1 sample) ----
+        # if self.visualize_training:
+        #     iter_str = f"{self.vis_iter:05d}"
+        #     pts_path = os.path.join(self.vis_dir, f"iter_{iter_str}_points.png")
+
+        #     # Use first sample
+        #     visualize_points(pred_points[0], gt_radar_points[0], pts_path)
+
+        if self.visualize_training:  # only visualize batch size 1
+            B = pred_points.shape[0]
+            s_dir = os.path.join(self.vis_dir, f"{self.vis_iter}")
+            # Save BEV feature heatmap
+            for i in range(B):
+                iter_str = f"{i:05d}"
+                os.makedirs(os.path.join(s_dir, "gt_pred"), exist_ok=True)
+                pts_path = os.path.join(s_dir, "gt_pred", f"iter_{iter_str}_points.png")
+                visualize_points(pred_points[i], gt_radar_points[i], pts_path)
+
+        # Ensure gt_radar_points is on the same device
+        if not isinstance(gt_radar_points, torch.Tensor):
+            gt_radar_points = torch.stack([torch.as_tensor(x) for x in gt_radar_points])
+        gt_radar_points = gt_radar_points.to(pred_points.device)
+        
+        # Main loss: Chamfer distance
+        chamfer_loss = self._chamfer_distance(pred_points, gt_radar_points)
+        
+        # L1 loss component for monitoring
+        l1_loss = F.l1_loss(pred_points, gt_radar_points[:, :self.num_points, :])
+        
+        # Diversity loss: Encourage spatial spread
+        diversity_loss = self._diversity_loss(pred_points, min_distance=self.min_distance)
+        
+        # Coverage loss: Ensure GT points are covered
+        coverage_loss = self._coverage_loss(
+            pred_points, gt_radar_points, threshold=self.coverage_threshold
+        )
+        
+        # Spatial variance loss (only for spatial mode)
+        if self.use_spatial:
+            spatial_var_loss = self._spatial_variance_loss(pred_points)
+        else:
+            spatial_var_loss = torch.tensor(0.0, device=pred_points.device)
+        
+        # Combine losses with weights
+        total_loss = (
+            0.7 * chamfer_loss +                        # Main matching loss
+            self.l1_weight * l1_loss +                  # L1 regularization
+            self.diversity_weight * diversity_loss +     # Spread predictions
+            self.coverage_weight * coverage_loss         # Ensure coverage
+        )
+        
+        # Add spatial variance loss only in spatial mode
+        if self.use_spatial:
+            total_loss = total_loss + 0.2 * spatial_var_loss
+        
+        # Return individual losses for monitoring
+        losses = {
+            'loss_radar_points': total_loss * self.loss_weight,
+            'loss_chamfer': chamfer_loss,
+            'loss_diversity': diversity_loss,
+            'loss_coverage': coverage_loss,
+            'loss_l1': l1_loss,
+        }
+        
+        if self.use_spatial:
+            losses['loss_spatial_var'] = spatial_var_loss
+        
+        return losses
+    
+    def _spatial_variance_loss(self, pred_points):
+        """Encourage different spatial groups to predict in different regions.
+        
+        Args:
+            pred_points (Tensor): (B, N, 3) predicted points
+            
+        Returns:
+            Tensor: Spatial variance loss
+        """
+        B, N, D = pred_points.shape
+        
+        # Reshape into spatial groups
+        pred_grouped = pred_points.view(B, self.num_spatial_groups, self.points_per_group, D)
+        
+        # Compute centroid of each group
+        group_centroids = pred_grouped.mean(dim=2)  # (B, num_groups, 3)
+        
+        # Encourage group centroids to be spread out
+        c1 = group_centroids.unsqueeze(2)  # (B, num_groups, 1, 3)
+        c2 = group_centroids.unsqueeze(1)  # (B, 1, num_groups, 3)
+        
+        dists = torch.sqrt(torch.sum((c1 - c2) ** 2, dim=-1) + 1e-6)  # (B, num_groups, num_groups)
+        
+        # Penalize small distances between group centroids
+        min_centroid_dist = 2.0  # meters
+        violation = torch.clamp(min_centroid_dist - dists, min=0.0)
+        
+        # Exclude self-distances (diagonal)
+        mask = ~torch.eye(self.num_spatial_groups, dtype=torch.bool, device=pred_points.device).unsqueeze(0)
+        violation = violation * mask.float()
+        
+        # Average over all pairs
+        spatial_var_loss = violation.sum() / (B * self.num_spatial_groups * (self.num_spatial_groups - 1) + 1e-6)
+        
+        return spatial_var_loss
+    
+    def _chamfer_distance(self, pred_points, gt_points):
+        """Compute Chamfer distance between predicted and GT points.
+        
+        Args:
+            pred_points (Tensor): (B, N_pred, 3)
+            gt_points (Tensor): (B, N_gt, 3)
+            
+        Returns:
+            Tensor: Chamfer distance loss
+        """
+        B, N_pred, D = pred_points.shape
+        N_gt = gt_points.shape[1]
+        
+        # Expand for pairwise distance computation
+        pred_expand = pred_points.unsqueeze(2)  # (B, N_pred, 1, 3)
+        gt_expand = gt_points.unsqueeze(1)      # (B, 1, N_gt, 3)
+        
+        # Compute pairwise squared distances
+        dist = torch.sum((pred_expand - gt_expand) ** 2, dim=-1)  # (B, N_pred, N_gt)
+        
+        # Forward: for each predicted point, find nearest GT
+        min_dist_pred, _ = torch.min(dist, dim=2)  # (B, N_pred)
+        loss_pred = torch.sqrt(min_dist_pred + 1e-6).mean()
+        
+        # Backward: for each GT point, find nearest prediction
+        min_dist_gt, _ = torch.min(dist, dim=1)    # (B, N_gt)
+        loss_gt = torch.sqrt(min_dist_gt + 1e-6).mean()
+        
+        # Symmetric Chamfer distance
+        chamfer_loss = loss_pred + loss_gt
+        
+        return chamfer_loss
+    
+    def _diversity_loss(self, pred_points, min_distance=0.5):
+        """Encourage spatial diversity in predictions.
+        
+        Penalizes predictions that cluster too closely together.
+        
+        Args:
+            pred_points (Tensor): (B, N, 3) predicted radar points
+            min_distance (float): Minimum desired distance between predictions (meters)
+        
+        Returns:
+            Tensor: Diversity loss
+        """
+        B, N, _ = pred_points.shape
+        
+        # Compute pairwise distances between predictions
+        pred_expand1 = pred_points.unsqueeze(2)  # (B, N, 1, 3)
+        pred_expand2 = pred_points.unsqueeze(1)  # (B, 1, N, 3)
+        
+        dists = torch.sqrt(torch.sum((pred_expand1 - pred_expand2) ** 2, dim=-1) + 1e-6)  # (B, N, N)
+        
+        # Penalize distances below threshold (excluding self-distances)
+        violation = torch.clamp(min_distance - dists, min=0.0)
+        
+        # Create mask to exclude diagonal (self-distances)
+        mask = ~torch.eye(N, dtype=torch.bool, device=pred_points.device).unsqueeze(0)
+        violation = violation * mask.float()
+        
+        # Average over all valid pairs
+        diversity_loss = violation.sum() / (B * N * (N - 1) + 1e-6)
+        
+        return diversity_loss
+    
+    def _coverage_loss(self, pred_points, gt_points, threshold=1.5):
+        """Ensure all GT points are covered by predictions.
+        
+        Penalizes GT points that are far from all predictions.
+        
+        Args:
+            pred_points (Tensor): (B, N_pred, 3)
+            gt_points (Tensor): (B, N_gt, 3)
+            threshold (float): Coverage radius threshold (meters)
+        
+        Returns:
+            Tensor: Coverage loss
+        """
+        pred_expand = pred_points.unsqueeze(2)  # (B, N_pred, 1, 3)
+        gt_expand = gt_points.unsqueeze(1)      # (B, 1, N_gt, 3)
+        
+        # Distance from each GT to nearest prediction
+        dists = torch.sqrt(torch.sum((pred_expand - gt_expand) ** 2, dim=-1) + 1e-6)  # (B, N_pred, N_gt)
+        min_dists = torch.min(dists, dim=1)[0]  # (B, N_gt)
+        
+        # Penalize GT points that are not covered (beyond threshold)
+        uncovered = torch.clamp(min_dists - threshold, min=0.0)
+        coverage_loss = uncovered.mean()
+        
+        return coverage_loss
+    
+    def get_points(self, preds_dicts):
+        """Get predicted points for visualization/evaluation.
+        
+        Args:
+            preds_dicts (list[dict]): Predictions
+            
+        Returns:
+            Tensor: Predicted points (B, num_points, point_dim)
+        """
+        return preds_dicts[0]['radar_points']
+
+
+@HEADS.register_module()
+class RadarPointHead(RadarPointRegressionHead):
+    """Alias for backward compatibility."""
+    pass
